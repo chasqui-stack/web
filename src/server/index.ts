@@ -1,0 +1,8 @@
+import { createApp } from './app'
+import { loadConfig } from './config'
+
+const cfg = loadConfig()
+createApp({ config: cfg }).listen(cfg.port, () => {
+  // eslint-disable-next-line no-console
+  console.log(`chasqui-web gateway listening on :${cfg.port} → core ${cfg.coreUrl}`)
+})
