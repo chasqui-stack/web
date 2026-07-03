@@ -4,6 +4,8 @@ export interface ChatMessage {
   type: string
   text: string | null
   hasMedia?: boolean
+  /** Local-only data URI for media the visitor just sent (image thumbnails). */
+  src?: string
 }
 
 export interface OutboundWidgetMessage {
