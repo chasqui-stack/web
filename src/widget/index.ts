@@ -27,8 +27,11 @@ function mount(): void {
   render(h(App, { gateway }), mountPoint)
 }
 
-if (document.readyState === 'loading') {
-  document.addEventListener('DOMContentLoaded', mount)
-} else {
+// Mount after `load` (not DOMContentLoaded): the widget opens an SSE
+// connection on mount, and a connection opened before `load` keeps the
+// browser's loading spinner spinning forever on the host page.
+if (document.readyState === 'complete') {
   mount()
+} else {
+  window.addEventListener('load', () => mount(), { once: true })
 }
