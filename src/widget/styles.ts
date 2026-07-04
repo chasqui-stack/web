@@ -59,7 +59,9 @@ export const styles = `
 .msg .thumb {
   display: block; border-radius: 8px; max-width: 100%; max-height: 160px; object-fit: cover;
 }
+.msg.has-img .caption { padding: 6px 8px 2px; }
 .msg.media-note { display: inline-flex; align-items: center; gap: 8px; }
+.msg .media-note-row { display: flex; align-items: center; gap: 8px; margin-bottom: 4px; }
 
 /* Typing indicator */
 .typing { display: inline-flex; align-items: center; gap: 5px; padding: 13px 14px; }
@@ -73,6 +75,22 @@ export const styles = `
   0%, 80%, 100% { transform: scale(.75); opacity: .3; }
   40% { transform: scale(1); opacity: .5; }
 }
+
+/* Staged-attachment preview (attach-first flow: image sits here until Send) */
+.preview {
+  background: #FFFFFF; border-top: 1px solid #E7E5E4; padding: 8px 12px;
+  display: flex; align-items: flex-start; gap: 8px;
+}
+.preview .preview-thumb {
+  display: block; width: 48px; height: 48px; border-radius: 8px; object-fit: cover;
+}
+.preview .preview-remove {
+  width: 18px; height: 18px; flex: none; border: none; border-radius: 50%; cursor: pointer;
+  display: flex; align-items: center; justify-content: center; padding: 0;
+  background: #78716C; color: #FFFFFF; transition: background .2s ease-in-out;
+}
+.preview .preview-remove:hover { background: #EA9B27; }
+.preview .preview-remove:disabled { opacity: .35; cursor: not-allowed; background: #78716C; }
 
 /* Composer */
 .composer {

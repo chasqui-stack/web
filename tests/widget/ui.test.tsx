@@ -29,15 +29,38 @@ async function openPanel(root: HTMLElement): Promise<void> {
   })
 }
 
-async function typeAndSend(root: HTMLElement, text: string): Promise<void> {
+async function typeText(root: HTMLElement, text: string): Promise<void> {
   const input = root.querySelector('.composer .text') as HTMLInputElement
   await act(async () => {
     input.value = text
     input.dispatchEvent(new Event('input', { bubbles: true }))
   })
+}
+
+async function clickSend(root: HTMLElement): Promise<void> {
   await act(async () => {
     ;(root.querySelector('.composer .send') as HTMLButtonElement).click()
   })
+}
+
+async function typeAndSend(root: HTMLElement, text: string): Promise<void> {
+  await typeText(root, text)
+  await clickSend(root)
+}
+
+/** Simulate picking a file in the attach input and wait for it to stage. */
+async function pickFile(root: HTMLElement, file: File): Promise<void> {
+  const input = root.querySelector('.composer .attach input[type="file"]') as HTMLInputElement
+  await act(async () => {
+    Object.defineProperty(input, 'files', { value: [file], configurable: true })
+    input.dispatchEvent(new Event('change', { bubbles: true }))
+  })
+  // FileReader resolves asynchronously; wait until the preview strip renders.
+  for (let i = 0; i < 40 && !root.querySelector('.preview'); i++) {
+    await act(async () => {
+      await new Promise((r) => setTimeout(r, 5))
+    })
+  }
 }
 
 describe('widget App', () => {
@@ -160,5 +183,101 @@ describe('widget App', () => {
     expect(note).toBeTruthy()
     expect(note.textContent).toContain('Image')
     expect(note.querySelector('svg')).toBeTruthy()
+  })
+
+  it('renders a history image with a caption as placeholder + text', async () => {
+    const api = fakeApi({
+      history: vi.fn(async () => [
+        { role: 'in', type: 'image', text: 'my caption', hasMedia: true } as ChatMessage,
+      ]),
+    })
+    const root = mount(api)
+    await act(async () => {})
+    await openPanel(root)
+
+    const bubble = root.querySelector('.log .msg') as HTMLElement
+    expect(bubble).toBeTruthy()
+    expect(bubble.textContent).toContain('Image')
+    expect(bubble.textContent).toContain('my caption')
+    expect(bubble.querySelector('svg')).toBeTruthy()
+  })
+
+  it('stages a picked image in the composer without sending', async () => {
+    const api = fakeApi()
+    const root = mount(api)
+    await openPanel(root)
+    await pickFile(root, new File(['png-bytes'], 'pic.png', { type: 'image/png' }))
+
+    const preview = root.querySelector('.preview img.preview-thumb') as HTMLImageElement
+    expect(preview).toBeTruthy()
+    expect(preview.getAttribute('src')).toMatch(/^data:image\/png/)
+    expect(root.querySelector('.log img')).toBeFalsy() // not in the log
+    expect(api.send).not.toHaveBeenCalled()
+    expect(root.querySelector('.typing')).toBeFalsy()
+  })
+
+  it('sends staged image + caption together as one image message on Send', async () => {
+    const api = fakeApi()
+    const root = mount(api)
+    await openPanel(root)
+    await pickFile(root, new File(['png-bytes'], 'pic.png', { type: 'image/png' }))
+    await typeText(root, 'here is my receipt')
+    await clickSend(root)
+
+    expect(api.send).toHaveBeenCalledTimes(1)
+    const [, payload] = (api.send as ReturnType<typeof vi.fn>).mock.calls[0]
+    expect(payload.type).toBe('image')
+    expect(payload.text).toBe('here is my receipt')
+    expect(payload.media?.mime).toBe('image/png')
+    expect(payload.media?.dataUri).toMatch(/^data:image\/png/)
+
+    // One bubble carrying both the thumbnail and the caption.
+    const bubbles = root.querySelectorAll('.log .msg.has-img')
+    expect(bubbles.length).toBe(1)
+    expect(bubbles[0].querySelector('img.thumb')).toBeTruthy()
+    expect(bubbles[0].textContent).toContain('here is my receipt')
+
+    // Staged state cleared; waiting engaged.
+    expect(root.querySelector('.preview')).toBeFalsy()
+    expect((root.querySelector('.composer .text') as HTMLInputElement).value).toBe('')
+    expect(root.querySelector('.typing')).toBeTruthy()
+  })
+
+  it('sends a staged image alone when Send is pressed with no caption', async () => {
+    const api = fakeApi()
+    const root = mount(api)
+    await openPanel(root)
+    await pickFile(root, new File(['png-bytes'], 'pic.png', { type: 'image/png' }))
+    await clickSend(root)
+
+    expect(api.send).toHaveBeenCalledTimes(1)
+    const [, payload] = (api.send as ReturnType<typeof vi.fn>).mock.calls[0]
+    expect(payload.type).toBe('image')
+    expect(payload.text).toBeUndefined()
+    expect(payload.media?.dataUri).toMatch(/^data:image\/png/)
+    expect(root.querySelector('.log .msg.has-img img.thumb')).toBeTruthy()
+  })
+
+  it('removes the staged image via the X without sending', async () => {
+    const api = fakeApi()
+    const root = mount(api)
+    await openPanel(root)
+    await pickFile(root, new File(['png-bytes'], 'pic.png', { type: 'image/png' }))
+    expect(root.querySelector('.preview')).toBeTruthy()
+
+    await act(async () => {
+      ;(root.querySelector('.preview .preview-remove') as HTMLButtonElement).click()
+    })
+    expect(root.querySelector('.preview')).toBeFalsy()
+    expect(api.send).not.toHaveBeenCalled()
+  })
+
+  it('resets the file input after staging so the same file can be re-picked', async () => {
+    const api = fakeApi()
+    const root = mount(api)
+    await openPanel(root)
+    const input = root.querySelector('.composer .attach input[type="file"]') as HTMLInputElement
+    await pickFile(root, new File(['png-bytes'], 'pic.png', { type: 'image/png' }))
+    expect(input.value).toBe('')
   })
 })

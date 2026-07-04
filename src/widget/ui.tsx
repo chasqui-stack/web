@@ -78,6 +78,18 @@ function Bubble({ m }: { m: ChatMessage }) {
       return (
         <div class={`${cls} has-img`}>
           <img class="thumb" src={m.src} alt="Sent image" />
+          {m.text ? <div class="caption">{m.text}</div> : null}
+        </div>
+      )
+    }
+    if (m.text) {
+      return (
+        <div class={cls}>
+          <div class="media-note-row">
+            <ImageIcon size={16} />
+            <span>Image</span>
+          </div>
+          <div class="caption">{m.text}</div>
         </div>
       )
     }
@@ -116,6 +128,7 @@ export function App({ gateway, api: injected }: AppProps) {
   const [open, setOpen] = useState(false)
   const [messages, setMessages] = useState<ChatMessage[]>([])
   const [input, setInput] = useState('')
+  const [pendingImage, setPendingImage] = useState<{ mime: string; dataUri: string } | null>(null)
   const [recording, setRecording] = useState(false)
   const [waiting, setWaiting] = useState(false)
   const [status, setStatus] = useState('')
@@ -169,21 +182,31 @@ export function App({ gateway, api: injected }: AppProps) {
     }
   }
 
-  async function sendText() {
+  /** Stage a picked image in the composer — nothing is sent until Send. */
+  async function stageImage(file: File) {
+    if (waiting) return
+    const dataUri = await fileToDataUri(file)
+    setPendingImage({ mime: file.type, dataUri })
+  }
+
+  /** Send the composer: staged image (+ optional caption) or plain text. */
+  async function sendComposed() {
+    if (waiting) return
     const text = input.trim()
-    if (!text || waiting) return
+    if (pendingImage) {
+      const media = pendingImage
+      setInput('')
+      setPendingImage(null)
+      setMessages((m) => [...m, { role: 'in', type: 'image', text: text || null, src: media.dataUri }])
+      startWaiting()
+      handleReplies(await api.send(visitor, { type: 'image', ...(text ? { text } : {}), media }))
+      return
+    }
+    if (!text) return
     setInput('')
     setMessages((m) => [...m, { role: 'in', type: 'text', text }])
     startWaiting()
     handleReplies(await api.send(visitor, { type: 'text', text }))
-  }
-
-  async function sendImage(file: File) {
-    if (waiting) return
-    const dataUri = await fileToDataUri(file)
-    setMessages((m) => [...m, { role: 'in', type: 'image', text: null, src: dataUri }])
-    startWaiting()
-    handleReplies(await api.send(visitor, { type: 'image', media: { mime: file.type, dataUri } }))
   }
 
   async function toggleRecord() {
@@ -239,8 +262,21 @@ export function App({ gateway, api: injected }: AppProps) {
           ) : null}
         </div>
         {status ? <div class="status">{status}</div> : null}
+        {pendingImage ? (
+          <div class="preview">
+            <img class="preview-thumb" src={pendingImage.dataUri} alt="Staged image" />
+            <button
+              class="preview-remove"
+              aria-label="Remove staged image"
+              disabled={locked}
+              onClick={() => setPendingImage(null)}
+            >
+              <CloseIcon size={10} />
+            </button>
+          </div>
+        ) : null}
         <div class="composer">
-          <label class={`icon-btn attach${locked ? ' disabled' : ''}`} aria-label="Send image">
+          <label class={`icon-btn attach${locked ? ' disabled' : ''}`} aria-label="Attach image">
             <ImageIcon />
             <input
               type="file"
@@ -251,7 +287,7 @@ export function App({ gateway, api: injected }: AppProps) {
                 const el = e.currentTarget as HTMLInputElement
                 const f = el.files?.[0]
                 el.value = ''
-                if (f) void sendImage(f)
+                if (f) void stageImage(f)
               }}
             />
           </label>
@@ -271,10 +307,10 @@ export function App({ gateway, api: injected }: AppProps) {
             disabled={locked}
             onInput={(e) => setInput((e.currentTarget as HTMLInputElement).value)}
             onKeyDown={(e) => {
-              if (e.key === 'Enter') void sendText()
+              if (e.key === 'Enter') void sendComposed()
             }}
           />
-          <button class="send" aria-label="Send message" disabled={locked} onClick={() => void sendText()}>
+          <button class="send" aria-label="Send message" disabled={locked} onClick={() => void sendComposed()}>
             <SendIcon />
           </button>
         </div>
