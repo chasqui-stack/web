@@ -53,6 +53,12 @@ export const styles = `
   max-width: 78%; padding: 10px 14px; font-size: 14px; line-height: 1.45;
   white-space: pre-wrap; word-wrap: break-word;
 }
+.msg code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 13px;
+  background: rgba(0, 0, 0, 0.08); padding: 1px 5px; border-radius: 4px;
+}
+.msg.in code { background: rgba(255, 255, 255, 0.25); }
+.msg a { color: inherit; text-decoration: underline; }
 .msg.out { align-self: flex-start; background: #F5F5F4; color: #1C1917; border-radius: 4px 16px 16px 16px; }
 .msg.in { align-self: flex-end; background: #EA9B27; color: #FFFFFF; border-radius: 16px 16px 4px 16px; }
 .msg.has-img { padding: 6px; }

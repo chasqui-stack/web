@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'preact/hooks'
 import { createApi, type ChatMessage, type WidgetApi } from './api'
+import { renderMarkup } from './markup'
 import { getVisitorId } from './visitor'
 
 /** Clear `waiting` after this long even if no reply ever arrives. */
@@ -78,7 +79,7 @@ function Bubble({ m }: { m: ChatMessage }) {
       return (
         <div class={`${cls} has-img`}>
           <img class="thumb" src={m.src} alt="Sent image" />
-          {m.text ? <div class="caption">{m.text}</div> : null}
+          {m.text ? <div class="caption">{renderMarkup(m.text)}</div> : null}
         </div>
       )
     }
@@ -89,7 +90,7 @@ function Bubble({ m }: { m: ChatMessage }) {
             <ImageIcon size={16} />
             <span>Image</span>
           </div>
-          <div class="caption">{m.text}</div>
+          <div class="caption">{renderMarkup(m.text)}</div>
         </div>
       )
     }
@@ -108,7 +109,7 @@ function Bubble({ m }: { m: ChatMessage }) {
       </div>
     )
   }
-  return <div class={cls}>{m.text ?? (m.hasMedia ? 'Media' : '')}</div>
+  return <div class={cls}>{m.text ? renderMarkup(m.text) : m.hasMedia ? 'Media' : ''}</div>
 }
 
 // ---------------------------------------------------------------------------
