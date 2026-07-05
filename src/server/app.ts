@@ -52,7 +52,8 @@ export function createApp(deps: AppDeps = {}): Express {
       if (err) res.status(404).type('text/plain').send('// widget not built — run `npm run build`')
     })
   })
-  app.use(express.static(resolve(REPO_ROOT, 'public')))
+  // extensions: '/demo' resolves to demo.html (the documented QA URL).
+  app.use(express.static(resolve(REPO_ROOT, 'public'), { extensions: ['html'] }))
 
   return app
 }

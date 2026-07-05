@@ -18,6 +18,12 @@ gateway — see [ADR-011](https://github.com/chasqui-stack/chasqui/blob/main/doc
 `data-gateway` is optional (defaults to the script's origin). The bubble opens a
 chatbox; a visitor is identified by an anonymous UUID in `localStorage`.
 
+What the visitor gets: **live agent replies over SSE**, image attachments with
+caption (attach-first: thumbnail staged in the composer, sent together), voice
+notes, conversation **rehydration** on reopen, and the agent's
+WhatsApp-flavored formatting rendered properly (`*bold*`, bullets, links).
+Shadow-DOM isolated, ~11 kB gzip, zero dependencies on the host page.
+
 ## How it fits
 
 ```
