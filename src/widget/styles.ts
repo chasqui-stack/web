@@ -58,6 +58,12 @@ export const styles = `
   background: rgba(0, 0, 0, 0.08); padding: 1px 5px; border-radius: 4px;
 }
 .msg.in code { background: rgba(255, 255, 255, 0.25); }
+.msg pre {
+  margin: 4px 0; padding: 8px 10px; border-radius: 8px; overflow-x: auto;
+  background: rgba(0, 0, 0, 0.08);
+}
+.msg pre code { background: none; padding: 0; }
+.msg.in pre { background: rgba(255, 255, 255, 0.25); }
 .msg a { color: inherit; text-decoration: underline; }
 .msg.out { align-self: flex-start; background: #F5F5F4; color: #1C1917; border-radius: 4px 16px 16px 16px; }
 .msg.in { align-self: flex-end; background: #EA9B27; color: #FFFFFF; border-radius: 16px 16px 4px 16px; }

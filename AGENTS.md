@@ -90,5 +90,9 @@ have `ui.tsx` append them. The core keeps sending one-shot `/send`.
 - Put business logic here — it's a channel adapter (transport + UI only).
 - Leak `INTERNAL_API_KEY` to the browser, or origin-check `/send`.
 - Ship token streaming in the MVP (see above).
+- **Render canonical text as a channel dialect.** `message.text` is standard
+  Markdown (ARCHITECTURE §5, [ADR-007](https://github.com/chasqui-stack/chasqui/blob/main/docs/design/adr-007-canonical-markdown-rendering.md));
+  the widget renders that — and only that — in `src/widget/markup.tsx`. Don't
+  parse WhatsApp-flavored markup here, and don't push formatting into the core.
 - Hardcode user-facing copy — the two literals are `.env` (`ERROR_REPLY`,
   `UNSUPPORTED_REPLY`), English default; everything else the agent localizes.
