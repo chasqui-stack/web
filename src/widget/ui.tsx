@@ -1,10 +1,13 @@
-import { useEffect, useMemo, useRef, useState } from 'preact/hooks'
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'preact/hooks'
 import { createApi, type ChatMessage, type WidgetApi } from './api'
 import { renderMarkup } from './markup'
 import { getVisitorId } from './visitor'
 
 /** Clear `waiting` after this long even if no reply ever arrives. */
 const WAITING_TIMEOUT_MS = 45_000
+
+/** Composer grows line by line up to this height (≈6 lines), then scrolls. Keep in sync with styles.ts. */
+const COMPOSER_MAX_HEIGHT_PX = 140
 
 // ---------------------------------------------------------------------------
 // Inline SVG icons (no emojis; currentColor unless a fill is passed).
@@ -134,6 +137,7 @@ export function App({ gateway, api: injected }: AppProps) {
   const [waiting, setWaiting] = useState(false)
   const [status, setStatus] = useState('')
   const logRef = useRef<HTMLDivElement>(null)
+  const textRef = useRef<HTMLTextAreaElement>(null)
   const recorderRef = useRef<MediaRecorder | null>(null)
   const waitTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
@@ -175,6 +179,23 @@ export function App({ gateway, api: injected }: AppProps) {
   useEffect(() => {
     if (logRef.current) logRef.current.scrollTop = logRef.current.scrollHeight
   }, [messages, waiting, open])
+
+  /** Grow the composer to fit its content up to COMPOSER_MAX_HEIGHT_PX, then scroll (WhatsApp-style). */
+  function autosizeComposer() {
+    const el = textRef.current
+    if (!el) return
+    const log = logRef.current
+    const pinned = !!log && log.scrollHeight - log.scrollTop - log.clientHeight < 8
+    el.style.height = 'auto'
+    const next = Math.min(el.scrollHeight, COMPOSER_MAX_HEIGHT_PX)
+    el.style.height = `${next}px`
+    el.style.overflowY = el.scrollHeight > COMPOSER_MAX_HEIGHT_PX ? 'auto' : 'hidden'
+    if (pinned && log) log.scrollTop = log.scrollHeight
+  }
+
+  useLayoutEffect(() => {
+    autosizeComposer()
+  }, [input, open])
 
   function handleReplies(replies: ChatMessage[]) {
     if (replies.length) {
@@ -300,15 +321,21 @@ export function App({ gateway, api: injected }: AppProps) {
           >
             {recording ? <StopIcon /> : <MicIcon />}
           </button>
-          <input
+          <textarea
+            ref={textRef}
             class="text"
-            type="text"
+            rows={1}
             placeholder="Type a message…"
+            aria-label="Message"
             value={input}
             disabled={locked}
-            onInput={(e) => setInput((e.currentTarget as HTMLInputElement).value)}
+            onInput={(e) => setInput((e.currentTarget as HTMLTextAreaElement).value)}
             onKeyDown={(e) => {
-              if (e.key === 'Enter') void sendComposed()
+              // Enter sends; Shift+Enter is a newline; never send mid-IME composition (229 = Safari IME).
+              if (e.key === 'Enter' && !e.shiftKey && !e.isComposing && e.keyCode !== 229) {
+                e.preventDefault()
+                void sendComposed()
+              }
             }}
           />
           <button class="send" aria-label="Send message" disabled={locked} onClick={() => void sendComposed()}>

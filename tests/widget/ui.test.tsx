@@ -29,8 +29,23 @@ async function openPanel(root: HTMLElement): Promise<void> {
   })
 }
 
+function composer(root: HTMLElement): HTMLTextAreaElement {
+  return root.querySelector('.composer .text') as HTMLTextAreaElement
+}
+
+/** jsdom does no layout — fake the content height the browser would report. */
+function stubScrollHeight(el: HTMLElement, px: number): void {
+  Object.defineProperty(el, 'scrollHeight', { configurable: true, get: () => px })
+}
+
+async function pressKey(el: HTMLElement, init: KeyboardEventInit): Promise<void> {
+  await act(async () => {
+    el.dispatchEvent(new KeyboardEvent('keydown', { bubbles: true, cancelable: true, ...init }))
+  })
+}
+
 async function typeText(root: HTMLElement, text: string): Promise<void> {
-  const input = root.querySelector('.composer .text') as HTMLInputElement
+  const input = root.querySelector('.composer .text') as HTMLTextAreaElement
   await act(async () => {
     input.value = text
     input.dispatchEvent(new Event('input', { bubbles: true }))
@@ -107,7 +122,7 @@ describe('widget App', () => {
     await openPanel(root)
     await typeAndSend(root, 'anyone there?')
 
-    const input = root.querySelector('.composer .text') as HTMLInputElement
+    const input = root.querySelector('.composer .text') as HTMLTextAreaElement
     const send = root.querySelector('.composer .send') as HTMLButtonElement
     const mic = root.querySelector('.composer .icon-btn[aria-label="Record voice note"]') as HTMLButtonElement
     expect(input.disabled).toBe(true)
@@ -133,7 +148,7 @@ describe('widget App', () => {
       emit?.({ role: 'out', type: 'text', text: 'pong (seconds later)' })
     })
     expect(root.querySelector('.typing')).toBeFalsy()
-    expect((root.querySelector('.composer .text') as HTMLInputElement).disabled).toBe(false)
+    expect((root.querySelector('.composer .text') as HTMLTextAreaElement).disabled).toBe(false)
     expect(root.textContent).toContain('pong (seconds later)')
   })
 
@@ -239,7 +254,7 @@ describe('widget App', () => {
 
     // Staged state cleared; waiting engaged.
     expect(root.querySelector('.preview')).toBeFalsy()
-    expect((root.querySelector('.composer .text') as HTMLInputElement).value).toBe('')
+    expect((root.querySelector('.composer .text') as HTMLTextAreaElement).value).toBe('')
     expect(root.querySelector('.typing')).toBeTruthy()
   })
 
@@ -270,6 +285,87 @@ describe('widget App', () => {
     })
     expect(root.querySelector('.preview')).toBeFalsy()
     expect(api.send).not.toHaveBeenCalled()
+  })
+
+  it('renders the composer as a single-row textarea', async () => {
+    const root = mount(fakeApi())
+    await openPanel(root)
+    const ta = composer(root)
+    expect(ta.tagName).toBe('TEXTAREA')
+    expect(ta.rows).toBe(1)
+  })
+
+  it('sends on Enter', async () => {
+    const api = fakeApi()
+    const root = mount(api)
+    await openPanel(root)
+    await typeText(root, 'hola')
+    await pressKey(composer(root), { key: 'Enter' })
+    expect(api.send).toHaveBeenCalledTimes(1)
+    expect(api.send).toHaveBeenCalledWith(expect.anything(), { type: 'text', text: 'hola' })
+  })
+
+  it('inserts a newline on Shift+Enter instead of sending', async () => {
+    const api = fakeApi()
+    const root = mount(api)
+    await openPanel(root)
+    await typeText(root, 'hola')
+    await pressKey(composer(root), { key: 'Enter', shiftKey: true })
+    expect(api.send).not.toHaveBeenCalled()
+  })
+
+  it('does not send on Enter during IME composition', async () => {
+    const api = fakeApi()
+    const root = mount(api)
+    await openPanel(root)
+    await typeText(root, 'hola')
+    await pressKey(composer(root), { key: 'Enter', isComposing: true })
+    expect(api.send).not.toHaveBeenCalled()
+  })
+
+  it('sends multi-line text with its newlines preserved', async () => {
+    const api = fakeApi()
+    const root = mount(api)
+    await openPanel(root)
+    await typeText(root, 'line 1\nline 2')
+    await clickSend(root)
+    expect(api.send).toHaveBeenCalledTimes(1)
+    expect(api.send).toHaveBeenCalledWith(expect.anything(), { type: 'text', text: 'line 1\nline 2' })
+  })
+
+  it('does not send a message made only of newlines', async () => {
+    const api = fakeApi()
+    const root = mount(api)
+    await openPanel(root)
+    await typeText(root, '\n\n')
+    await clickSend(root)
+    expect(api.send).not.toHaveBeenCalled()
+  })
+
+  it('grows with content up to the max height, then scrolls', async () => {
+    const root = mount(fakeApi())
+    await openPanel(root)
+    const ta = composer(root)
+    stubScrollHeight(ta, 80)
+    await typeText(root, 'hello')
+    expect(ta.style.height).toBe('80px')
+    expect(ta.style.overflowY).toBe('hidden')
+    stubScrollHeight(ta, 400)
+    await typeText(root, 'hello hello hello')
+    expect(ta.style.height).toBe('140px')
+    expect(ta.style.overflowY).toBe('auto')
+  })
+
+  it('shrinks back after sending', async () => {
+    const root = mount(fakeApi())
+    await openPanel(root)
+    const ta = composer(root)
+    stubScrollHeight(ta, 100)
+    await typeText(root, 'a long message')
+    expect(ta.style.height).toBe('100px')
+    stubScrollHeight(ta, 40)
+    await clickSend(root)
+    expect(ta.style.height).toBe('40px')
   })
 
   it('resets the file input after staging so the same file can be re-picked', async () => {
