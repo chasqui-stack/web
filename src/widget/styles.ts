@@ -107,12 +107,15 @@ export const styles = `
 /* Composer */
 .composer {
   min-height: 60px; background: #FFFFFF; border-top: 1px solid #E7E5E4;
-  padding: 8px 12px; display: flex; align-items: center; gap: 8px;
+  padding: 10px 12px; display: flex; align-items: flex-end; gap: 8px;
 }
+/* Bottom-anchored buttons: with a 40px single-line field, these margins center
+   them on the row exactly like the old align-items:center. */
 .composer .icon-btn {
   width: 32px; height: 32px; flex: none; border: none; background: none; cursor: pointer;
   display: flex; align-items: center; justify-content: center;
   color: #78716C; border-radius: 50%; transition: color .2s ease-in-out;
+  margin-bottom: 4px; /* 32px tall → (40-32)/2 */
 }
 .composer .icon-btn:hover { color: #EA9B27; }
 .composer .icon-btn:disabled, .composer .icon-btn.disabled { opacity: .35; cursor: not-allowed; color: #78716C; }
@@ -128,14 +131,21 @@ export const styles = `
   100% { transform: scale(.75); opacity: 0; }
 }
 .composer .text {
-  flex: 1; min-width: 0; border: none; outline: none; background: #F5F5F4;
-  padding: 10px 14px; border-radius: 999px; font-size: 14px; font-family: inherit; color: #1C1917;
+  flex: 1; min-width: 0; display: block; margin: 0;
+  border: none; outline: none; resize: none; background: #F5F5F4;
+  padding: 10px 14px; border-radius: 20px;
+  font-size: 14px; line-height: 20px; font-family: inherit; color: #1C1917;
+  height: 40px; min-height: 40px; max-height: 140px; /* keep in sync with COMPOSER_MAX_HEIGHT_PX */
+  overflow-y: hidden; overflow-x: hidden; overflow-wrap: anywhere;
+  scrollbar-width: thin; scrollbar-color: #D6D3D1 transparent;
 }
+.composer .text::placeholder { color: #A8A29E; }
 .composer .text:disabled { opacity: .35; cursor: not-allowed; }
 .composer .send {
   width: 36px; height: 36px; flex: none; border: none; border-radius: 50%; cursor: pointer;
   display: flex; align-items: center; justify-content: center;
   background: #1C1917; color: #FFFFFF; transition: opacity .2s ease-in-out;
+  margin-bottom: 2px; /* 36px tall → (40-36)/2 */
 }
 .composer .send:hover { opacity: .85; }
 .composer .send:disabled { opacity: .35; cursor: not-allowed; }
