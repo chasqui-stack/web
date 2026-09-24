@@ -190,6 +190,8 @@ export function App({ gateway, api: injected }: AppProps) {
     const next = Math.min(el.scrollHeight, COMPOSER_MAX_HEIGHT_PX)
     el.style.height = `${next}px`
     el.style.overflowY = el.scrollHeight > COMPOSER_MAX_HEIGHT_PX ? 'auto' : 'hidden'
+    // The 'auto' reset drops the field's scroll offset; keep the caret in view when typing/pasting at the end.
+    if (el.selectionEnd === el.value.length) el.scrollTop = el.scrollHeight
     if (pinned && log) log.scrollTop = log.scrollHeight
   }
 
