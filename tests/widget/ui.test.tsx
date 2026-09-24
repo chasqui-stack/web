@@ -356,6 +356,34 @@ describe('widget App', () => {
     expect(ta.style.overflowY).toBe('auto')
   })
 
+  it('keeps the caret in view past the cap when it is at the end (paste)', async () => {
+    const root = mount(fakeApi())
+    await openPanel(root)
+    const ta = composer(root)
+    // jsdom's scrollTop is inert — record writes instead.
+    let scrollTop = 0
+    Object.defineProperty(ta, 'scrollTop', { configurable: true, get: () => scrollTop, set: (v) => (scrollTop = v) })
+    stubScrollHeight(ta, 400)
+    await typeText(root, 'a pasted paragraph that overflows the cap')
+    expect(ta.selectionEnd).toBe(ta.value.length)
+    expect(scrollTop).toBe(400)
+  })
+
+  it('does not yank the field scroll when the caret is mid-text', async () => {
+    const root = mount(fakeApi())
+    await openPanel(root)
+    const ta = composer(root)
+    let scrollTop = 0
+    Object.defineProperty(ta, 'scrollTop', { configurable: true, get: () => scrollTop, set: (v) => (scrollTop = v) })
+    stubScrollHeight(ta, 400)
+    await act(async () => {
+      ta.value = 'editing somewhere in the middle of a long message'
+      ta.setSelectionRange(3, 3)
+      ta.dispatchEvent(new Event('input', { bubbles: true }))
+    })
+    expect(scrollTop).toBe(0)
+  })
+
   it('shrinks back after sending', async () => {
     const root = mount(fakeApi())
     await openPanel(root)
